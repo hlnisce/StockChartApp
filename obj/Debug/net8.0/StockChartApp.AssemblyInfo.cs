@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("StockChartApp")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+42a899e6c36f319f5c274fcc22d53745fcf1a158")]
 [assembly: System.Reflection.AssemblyProductAttribute("StockChartApp")]
 [assembly: System.Reflection.AssemblyTitleAttribute("StockChartApp")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

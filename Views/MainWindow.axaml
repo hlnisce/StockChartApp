@@ -26,6 +26,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
@@ -52,8 +53,18 @@
             <!-- Chart area and overlays live in the second column; Y labels will be drawn inside the chart's left margin via overlay -->
             <local:StockChartControl Grid.Column="1" x:Name="ChartArea" Candles="{Binding Candles}" />
 
+
             <!-- Overlay container inside the chart column for axis labels -->
             <Grid Grid.Column="1" IsHitTestVisible="False">
+                 <TextBlock Text="{Binding SymbolPriceDisplay}" 
+                   FontSize="24" 
+                   FontWeight="Bold" 
+                   Foreground="#1976D2" 
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Top"
+                   Margin="5, 10, 5, 0"
+                   IsHitTestVisible="False" />
+        
                 <!-- Y labels overlay: positioned inside chart left margin (x ~ 6) -->
                 <ItemsControl ItemsSource="{Binding ElementName=ChartArea, Path=PixelYLabels}" x:Name="YLabelsOverlay" IsVisible="False">
                     <ItemsControl.ItemsPanel>

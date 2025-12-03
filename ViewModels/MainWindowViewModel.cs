@@ -17,6 +17,10 @@ public partial class MainWindowViewModel : ViewModelBase
     private string selectedSymbol = string.Empty;
 
     [ObservableProperty]
+    private double currentPrice;
+    // ⭐ COMPUTED PROPERTY (No [ObservableProperty] attribute) ⭐
+    public string SymbolPriceDisplay => $"{SelectedSymbol}: {CurrentPrice:F2}";
+    [ObservableProperty]
     private List<OhlcPoint> candles = new List<OhlcPoint>();
 
     // (Removed manual X/Y label collections — LiveCharts draws axes now)
@@ -45,6 +49,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedSymbol = NewSymbol.Trim().ToUpperInvariant();
         NewSymbol = string.Empty;
     }
+
 
     public MainWindowViewModel()
     {

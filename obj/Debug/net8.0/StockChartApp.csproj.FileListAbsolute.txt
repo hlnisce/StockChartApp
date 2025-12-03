@@ -77,3 +77,4 @@
 /home/henry/StockChartApp/bin/Debug/net8.0/LiveChartsCore.SkiaSharpView.dll
 /home/henry/StockChartApp/bin/Debug/net8.0/LiveChartsCore.SkiaSharpView.Avalonia.dll
 /home/henry/StockChartApp/bin/Debug/net8.0/SkiaSharp.HarfBuzz.dll
+/home/henry/StockChartApp/obj/Debug/net8.0/StockChartApp.sourcelink.json
