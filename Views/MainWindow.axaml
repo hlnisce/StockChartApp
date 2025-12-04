@@ -3,6 +3,7 @@
     xmlns:vm="using:StockChartApp.ViewModels"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:shapes="clr-namespace:Avalonia.Controls.Shapes;assembly=Avalonia.Controls"
     xmlns:local="using:StockChartApp.Views"
     xmlns:conv="using:StockChartApp.Converters"
     xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.Avalonia;assembly=LiveChartsCore.SkiaSharpView.Avalonia"
@@ -38,9 +39,21 @@
             <!-- Interval dropdown (defaults to 3m) -->
             <ComboBox ItemsSource="{Binding Intervals}" SelectedItem="{Binding SelectedInterval, Mode=TwoWay}" Width="80"/>
 
+            <!-- Period dropdown (1D, 1W, 1M, 1Y) -->
+            <ComboBox ItemsSource="{Binding Periods}" SelectedItem="{Binding SelectedPeriod, Mode=TwoWay}" Width="70"/>
+
             <!-- Right of the dropdown: text input to enter a custom symbol and a Load button -->
             <TextBox x:Name="SymbolTextBox" Width="120" Watermark="Enter symbol" Text="{Binding NewSymbol, Mode=TwoWay}" KeyDown="SymbolTextBox_KeyDown" />
             <Button Content="Load" Command="{Binding LoadSymbolCommand}" />
+            
+            <TextBlock Text="{Binding SymbolPriceDisplay}" 
+                FontSize="24" 
+                FontWeight="Bold" 
+                Foreground="#1976D2" 
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0, 0, 0, 0"
+                IsHitTestVisible="False" />
         </StackPanel>
 
         <!-- Middle: left column for Y labels, right column for chart -->
@@ -51,19 +64,23 @@
             </Grid.ColumnDefinitions>
 
             <!-- Chart area and overlays live in the second column; Y labels will be drawn inside the chart's left margin via overlay -->
-            <local:StockChartControl Grid.Column="1" x:Name="ChartArea" Candles="{Binding Candles}" />
-
+        <local:StockChartControl 
+            Grid.Column="1" 
+            x:Name="ChartArea" 
+            Candles="{Binding Candles}"
+            Period="{Binding SelectedPeriod}"
+            PointerMoved="ChartArea_PointerMoved"      PointerExited="ChartArea_PointerExited"    />
 
             <!-- Overlay container inside the chart column for axis labels -->
             <Grid Grid.Column="1" IsHitTestVisible="False">
-                 <TextBlock Text="{Binding SymbolPriceDisplay}" 
-                   FontSize="24" 
-                   FontWeight="Bold" 
-                   Foreground="#1976D2" 
-                   HorizontalAlignment="Right"
-                   VerticalAlignment="Top"
-                   Margin="5, 10, 5, 0"
-                   IsHitTestVisible="False" />
+
+    <shapes:Line 
+        Stroke="Gray" 
+        StrokeThickness="1"
+       />
+
+
+
         
                 <!-- Y labels overlay: positioned inside chart left margin (x ~ 6) -->
                 <ItemsControl ItemsSource="{Binding ElementName=ChartArea, Path=PixelYLabels}" x:Name="YLabelsOverlay" IsVisible="False">

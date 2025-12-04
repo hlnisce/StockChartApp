@@ -39,9 +39,18 @@ public class StockChartControl : Control
         set => SetValue(PixelXLabelsProperty, value);
     }
 
+    public static readonly StyledProperty<string?> PeriodProperty =
+        AvaloniaProperty.Register<StockChartControl, string?>(nameof(Period), "1D");
+
+    public string? Period
+    {
+        get => GetValue(PeriodProperty);
+        set => SetValue(PeriodProperty, value);
+    }
+
     static StockChartControl()
     {
-        AffectsRender<StockChartControl>(CandlesProperty);
+        AffectsRender<StockChartControl>(CandlesProperty, PeriodProperty);
     }
 
     public override void Render(DrawingContext context)
@@ -63,6 +72,43 @@ public class StockChartControl : Control
         double height = Math.Max(1, rect.Height - topMargin - bottomMargin);
 
         var data = Candles.ToList();
+        var period = Period?.ToUpperInvariant() ?? "1D";
+
+        // For 1D period, shade all non-trading hours (outside 08:30-16:00), leaving only market hours white
+        if (period == "1D")
+        {
+            var pmStart = data.First().Time;
+            var pmEnd = data.Last().Time;
+            double pmTotalMinutes = (pmEnd - pmStart).TotalMinutes;
+            
+            if (pmTotalMinutes > 0)
+            {
+                var marketStart = new DateTime(pmStart.Year, pmStart.Month, pmStart.Day, 8, 30, 0);
+                var marketEnd = new DateTime(pmStart.Year, pmStart.Month, pmStart.Day, 16, 0, 0);
+                
+                // Shade before market opens (before 08:30)
+                if (marketStart > pmStart)
+                {
+                    double beforeEndMin = (marketStart - pmStart).TotalMinutes;
+                    double beforeWidth = (beforeEndMin / pmTotalMinutes) * width;
+                    
+                    context.FillRectangle(new SolidColorBrush(Color.FromArgb(50, 200, 200, 200)), 
+                        new Rect(leftMargin, topMargin, beforeWidth, height));
+                }
+                
+                // Shade after market closes (after 16:00)
+                if (marketEnd < pmEnd)
+                {
+                    double afterStartMin = (marketEnd - pmStart).TotalMinutes;
+                    double afterEndMin = pmTotalMinutes;
+                    double afterX = leftMargin + (afterStartMin / pmTotalMinutes) * width;
+                    double afterWidth = ((afterEndMin - afterStartMin) / pmTotalMinutes) * width;
+                    
+                    context.FillRectangle(new SolidColorBrush(Color.FromArgb(50, 200, 200, 200)), 
+                        new Rect(afterX, topMargin, afterWidth, height));
+                }
+            }
+        }
 
         double min = data.Min(c => c.Low);
         double max = data.Max(c => c.High);
@@ -133,48 +179,183 @@ public class StockChartControl : Control
             context.DrawRectangle(pen, new Rect(left, top, candleWidth, bodyHeight));
         }
 
-        // Draw X-axis time labels every 30 minutes (collect pixel positions for overlay labels)
+        // Draw X-axis time labels based on period
         var start = data.First().Time;
         var end = data.Last().Time.AddMinutes(0);
         var totalMinutes = (end - start).TotalMinutes;
         if (totalMinutes <= 0) totalMinutes = 1;
 
-        // find first 30-minute boundary >= start
-        var tick = new System.DateTime(start.Year, start.Month, start.Day, start.Hour, (start.Minute / 30) * 30, 0);
-        if (tick < start) tick = tick.AddMinutes(30);
-
-        while (tick <= end)
+        if (period == "1W")
         {
-            double minutesFromStart = (tick - start).TotalMinutes;
-            double x = leftMargin + (minutesFromStart / totalMinutes) * width;
-            // tick line
-            context.DrawLine(pen, new Point(x, topMargin + height), new Point(x, topMargin + height + 4));
-            // label handled by view's bottom ItemsControl; no text drawn here.
+            // For 1W: show day-of-week labels only at day boundaries
+            var tick = new System.DateTime(start.Year, start.Month, start.Day, 0, 0, 0);
+            if (tick < start) tick = tick.AddDays(1);
 
-
-            // Debug marker: small rectangle to indicate where X label should be placed
-            var dbgBrush2 = Brushes.Black;
-            double dbgSize2 = 4;
-            context.FillRectangle(dbgBrush2, new Rect(x - dbgSize2 / 2, topMargin + height + 6 - dbgSize2 / 2, dbgSize2, dbgSize2));
-
-            // Draw X axis time label centered under the tick
-            try
+            while (tick <= end)
             {
-                var timeText = tick.ToLocalTime().ToString("HH:mm");
-                var tf2 = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Normal);
-                var ft2 = new FormattedText(timeText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, tf2, 12, Brushes.Black);
-                double tx2 = x - 20; // approximate centering
-                double ty2 = topMargin + height + 6;
-                context.DrawText(ft2, new Point(tx2, ty2));
-            }
-            catch
-            {
-                // ignore if FormattedText unavailable
-            }
+                double minutesFromStart = (tick - start).TotalMinutes;
+                double x = leftMargin + (minutesFromStart / totalMinutes) * width;
+                // tick line
+                context.DrawLine(pen, new Point(x, topMargin + height), new Point(x, topMargin + height + 4));
 
-            tick = tick.AddMinutes(30);
+                // Draw day-of-week label centered under the tick
+                try
+                {
+                    var dayText = tick.ToLocalTime().ToString("ddd");
+                    var tf2 = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Normal);
+                    var ft2 = new FormattedText(dayText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, tf2, 12, Brushes.Black);
+                    double tx2 = x - 15; // approximate centering
+                    double ty2 = topMargin + height + 6;
+                    context.DrawText(ft2, new Point(tx2, ty2));
+                }
+                catch
+                {
+                    // ignore if FormattedText unavailable
+                }
+
+                tick = tick.AddDays(1);
+            }
         }
+        else if (period == "1M")
+        {
+            // For 1M: show mm/dd labels at day boundaries
+            var tick = new System.DateTime(start.Year, start.Month, start.Day, 0, 0, 0);
+            if (tick < start) tick = tick.AddDays(1);
 
-        // (No pixel publishing necessary when drawing labels directly)
+            while (tick <= end)
+            {
+                double minutesFromStart = (tick - start).TotalMinutes;
+                double x = leftMargin + (minutesFromStart / totalMinutes) * width;
+                // tick line
+                context.DrawLine(pen, new Point(x, topMargin + height), new Point(x, topMargin + height + 4));
+
+                // Draw mm/dd label centered under the tick
+                try
+                {
+                    var dateText = tick.ToLocalTime().ToString("MM/dd");
+                    var tf2 = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Normal);
+                    var ft2 = new FormattedText(dateText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, tf2, 12, Brushes.Black);
+                    double tx2 = x - 20; // approximate centering
+                    double ty2 = topMargin + height + 6;
+                    context.DrawText(ft2, new Point(tx2, ty2));
+                }
+                catch
+                {
+                    // ignore if FormattedText unavailable
+                }
+
+                tick = tick.AddDays(1);
+            }
+        }
+        else if (period == "1Y")
+        {
+            // For 1Y: show weekly ticks and draw month label when month changes
+            // Align to start of week (Monday)
+            var tick = new DateTime(start.Year, start.Month, start.Day, 0, 0, 0);
+            // move to next Monday >= start
+            while (tick.DayOfWeek != DayOfWeek.Monday) tick = tick.AddDays(1);
+            if (tick < start) tick = tick.AddDays(7);
+
+            int? lastMonth = null;
+            while (tick <= end)
+            {
+                double minutesFromStart = (tick - start).TotalMinutes;
+                double x = leftMargin + (minutesFromStart / totalMinutes) * width;
+                // tick line
+                context.DrawLine(pen, new Point(x, topMargin + height), new Point(x, topMargin + height + 4));
+
+                // Draw month label only when month changes
+                try
+                {
+                    if (lastMonth == null || tick.Month != lastMonth)
+                    {
+                        var monthText = tick.ToLocalTime().ToString("MMM");
+                        var tf2 = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Normal);
+                        var ft2 = new FormattedText(monthText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, tf2, 12, Brushes.Black);
+                        double tx2 = x - 18; // approximate centering
+                        double ty2 = topMargin + height + 6;
+                        context.DrawText(ft2, new Point(tx2, ty2));
+                        lastMonth = tick.Month;
+                    }
+                }
+                catch
+                {
+                    // ignore if FormattedText unavailable
+                }
+
+                tick = tick.AddDays(7);
+            }
+        }
+        else if (period == "1D")
+        {
+            // For 1D with small intervals (< 15m): show labels every 5 minutes
+            // Otherwise show every 30 minutes
+            int labelIntervalMinutes = 30;
+            
+            // Check if this is a small interval 1D (last 2 hours case)
+            if ((end - start).TotalMinutes <= 120)  // 2 hours or less
+            {
+                labelIntervalMinutes = 5;
+            }
+
+            var tick = new System.DateTime(start.Year, start.Month, start.Day, start.Hour, (start.Minute / labelIntervalMinutes) * labelIntervalMinutes, 0);
+            if (tick < start) tick = tick.AddMinutes(labelIntervalMinutes);
+
+            while (tick <= end)
+            {
+                double minutesFromStart = (tick - start).TotalMinutes;
+                double x = leftMargin + (minutesFromStart / totalMinutes) * width;
+                // tick line
+                context.DrawLine(pen, new Point(x, topMargin + height), new Point(x, topMargin + height + 4));
+
+                // Draw X axis time label centered under the tick
+                try
+                {
+                    var timeText = tick.ToLocalTime().ToString("HH:mm");
+                    var tf2 = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Normal);
+                    var ft2 = new FormattedText(timeText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, tf2, 12, Brushes.Black);
+                    double tx2 = x - 20; // approximate centering
+                    double ty2 = topMargin + height + 6;
+                    context.DrawText(ft2, new Point(tx2, ty2));
+                }
+                catch
+                {
+                    // ignore if FormattedText unavailable
+                }
+
+                tick = tick.AddMinutes(labelIntervalMinutes);
+            }
+        }
+        else
+        {
+            // For other periods (1Y): show hourly or daily labels
+            var tick = new System.DateTime(start.Year, start.Month, start.Day, start.Hour, (start.Minute / 30) * 30, 0);
+            if (tick < start) tick = tick.AddMinutes(30);
+
+            while (tick <= end)
+            {
+                double minutesFromStart = (tick - start).TotalMinutes;
+                double x = leftMargin + (minutesFromStart / totalMinutes) * width;
+                // tick line
+                context.DrawLine(pen, new Point(x, topMargin + height), new Point(x, topMargin + height + 4));
+
+                // Draw X axis time label centered under the tick
+                try
+                {
+                    var timeText = tick.ToLocalTime().ToString("HHmm");
+                    var tf2 = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Normal);
+                    var ft2 = new FormattedText(timeText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, tf2, 12, Brushes.Black);
+                    double tx2 = x - 20; // approximate centering
+                    double ty2 = topMargin + height + 6;
+                    context.DrawText(ft2, new Point(tx2, ty2));
+                }
+                catch
+                {
+                    // ignore if FormattedText unavailable
+                }
+
+                tick = tick.AddMinutes(30);
+            }
+        }
     }
 }
