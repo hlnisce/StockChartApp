@@ -26,23 +26,17 @@ private IList<PatternResult>? _detectedPatterns = new List<PatternResult>();
 
 // ... rest of the DirectProperty definition ...
 
-public static readonly DirectProperty<StockChartControl, IList<PatternResult>?> DetectedPatternsProperty =
-    AvaloniaProperty.RegisterDirect<StockChartControl, IList<PatternResult>?>(
-        nameof(DetectedPatterns),
-        // Getter: Correctly accesses the backing field
-        o => o._detectedPatterns, 
-        
-        // ⭐ CRITICAL FIX: The setter must WRITE directly to the backing field! ⭐
-        (o, v) => o._detectedPatterns = v // Now points to the backing field, NOT the public setter.
-    ); 
+// Inside StockChartControl.cs: REMOVE the backing field and the RegisterDirect call
 
-// The public property implementation relies on SetAndRaise, which handles the notification.
-public IList<PatternResult>? DetectedPatterns
-{
-    get => _detectedPatterns;
-    // This is correct: SetAndRaise handles the notification and assignment to the backing field
-    set => SetAndRaise(DetectedPatternsProperty, ref _detectedPatterns, value); 
-}
+// Use standard StyledProperty registration (which should be fixed to IList<T>):
+    public static readonly StyledProperty<IList<PatternResult>?> DetectedPatternsProperty =
+        AvaloniaProperty.Register<StockChartControl, IList<PatternResult>?>(nameof(DetectedPatterns));
+
+    public IList<PatternResult>? DetectedPatterns
+    {
+        get => GetValue(DetectedPatternsProperty);
+        set => SetValue(DetectedPatternsProperty, value); // <-- This is the correct setter for StyledProperty
+    }
 
 // ... rest of the class ...
     public static readonly StyledProperty<IList<OhlcPoint>?> CandlesProperty =
@@ -327,35 +321,43 @@ public override void Render(DrawingContext context)
                 double yCoord;
                 IBrush fillBrush;
 
+        // --- Bullish Engulfing (Upward Triangle) ---
                 if (pattern.Type == PatternType.BullishEngulfing)
                 {
-                    // Draw marker below the candle's low
                     yCoord = topMargin + (max - candle.Low) / range * height + 10; // 10 pixels below
-                    fillBrush = upBrush;
+                    fillBrush = upBrush; // Should be LimeGreen
                     
-                    // Draw an upward triangle (simple approximation)
-                    var points = new[]
+                    // ⭐ FIX: Use StreamGeometry to guarantee a closed, filled shape ⭐
+                    var geometry = new StreamGeometry();
+                    using (var context2 = geometry.Open())
                     {
-                        new Point(xCenter - 4, yCoord + 8),
-                        new Point(xCenter + 4, yCoord + 8),
-                        new Point(xCenter, yCoord)
-                    };
-                    context.DrawGeometry(fillBrush, markerPen, new PolylineGeometry(points, false));
-                }
+                        // Define the three points of the triangle (upward direction)
+                        context2.BeginFigure(new Point(xCenter, yCoord), isFilled: true);
+                        context2.LineTo(new Point(xCenter + 6, yCoord + 12)); // Wider base
+                        context2.LineTo(new Point(xCenter - 6, yCoord + 12));
+                        context2.EndFigure(isClosed: true); // CLOSE THE TRIANGLE
+                    }
+                    
+                    context.DrawGeometry(fillBrush, markerPen, geometry);
+                } 
+                // --- Bearish Engulfing (Downward Triangle) ---
                 else if (pattern.Type == PatternType.BearishEngulfing)
                 {
-                    // Draw marker above the candle's high
                     yCoord = topMargin + (max - candle.High) / range * height - 10; // 10 pixels above
-                    fillBrush = downBrush;
+                    fillBrush = downBrush; // Should be Crimson
 
-                    // Draw a downward triangle
-                    var points = new[]
+                    // ⭐ FIX: Use StreamGeometry to guarantee a closed, filled shape ⭐
+                    var geometry = new StreamGeometry();
+                    using (var context2 = geometry.Open())
                     {
-                        new Point(xCenter - 4, yCoord - 8),
-                        new Point(xCenter + 4, yCoord - 8),
-                        new Point(xCenter, yCoord)
-                    };
-                    context.DrawGeometry(fillBrush, markerPen, new PolylineGeometry(points, false));
+                        // Define the three points of the triangle (downward direction)
+                        context2.BeginFigure(new Point(xCenter, yCoord), isFilled: true);
+                        context2.LineTo(new Point(xCenter + 6, yCoord - 12)); // Wider base
+                        context2.LineTo(new Point(xCenter - 6, yCoord - 12));
+                        context2.EndFigure(isClosed: true); // CLOSE THE TRIANGLE
+                    }
+
+                    context.DrawGeometry(fillBrush, markerPen, geometry);
                 }
             }
         }

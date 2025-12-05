@@ -78,3 +78,8 @@
 /home/henry/StockChartApp/obj/Debug/net8.0/StockChartApp.pdb
 /home/henry/StockChartApp/obj/Debug/net8.0/StockChartApp.genruntimeconfig.cache
 /home/henry/StockChartApp/obj/Debug/net8.0/ref/StockChartApp.dll
+/home/henry/StockChartApp/bin/Debug/net8.0/CsvHelper.dll
+/home/henry/StockChartApp/bin/Debug/net8.0/Flurl.dll
+/home/henry/StockChartApp/bin/Debug/net8.0/Flurl.Http.dll
+/home/henry/StockChartApp/bin/Debug/net8.0/Newtonsoft.Json.dll
+/home/henry/StockChartApp/bin/Debug/net8.0/YahooFinanceApi.dll

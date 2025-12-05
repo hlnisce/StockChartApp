@@ -52,12 +52,10 @@
                 x:Name="ChartArea" 
                 Candles="{Binding Candles}"
                 Period="{Binding SelectedPeriod}"
-                ZigzagPoints="{Binding ZigzagPoints}"  PointerMoved="ChartArea_PointerMoved"
+                ZigzagPoints="{Binding ZigzagPoints}"
+                DetectedPatterns="{Binding DetectedPatterns}"  PointerMoved="ChartArea_PointerMoved"
                 PointerExited="ChartArea_PointerExited"
             />
-
-            
         </Grid>
     </Grid>
-
 </Window>
