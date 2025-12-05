@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using StockChartApp.Models;
+using StockChartApp.Patterns;
 // LiveCharts removed — using custom chart control for candlesticks.
 
 namespace StockChartApp.ViewModels;
@@ -53,6 +54,10 @@ public partial class MainWindowViewModel : ViewModelBase
     private string selectedInterval = "3m";
     [ObservableProperty]
     private List<ZigzagPoint> zigzagPoints = new List<ZigzagPoint>();
+    // Inside MainWindowViewModel.cs, alongside your other [ObservableProperty] fields
+
+    [ObservableProperty]
+    private IList<PatternResult> detectedPatterns = new List<PatternResult>();
         
     [ObservableProperty]
     private string selectedPeriod= "1D";
@@ -66,7 +71,47 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedSymbol = NewSymbol.Trim().ToUpperInvariant();
         NewSymbol = string.Empty;
     }
+// Inside MainWindowViewModel.cs, near the top:
+    private readonly List<ICandlestickPattern> _detectors = new List<ICandlestickPattern>
+    {
+        new EngulfingPattern()
+        // Add new pattern classes here later: new HammerPattern(), new DojiPattern(), etc.
+    };
 
+
+private void DetectPatterns(IList<OhlcPoint> candles)
+{
+    var patterns = new List<PatternResult>();
+    if (candles == null || candles.Count < 2)
+    {
+        DetectedPatterns = patterns;
+        return;
+    }
+
+    // Iterate through every candle, starting from the second one (index 1)
+    for (int i = 1; i < candles.Count; i++)
+    {
+        // Check every registered pattern detector against the candle ending at index 'i'
+        foreach (var detector in _detectors)
+        {
+            // Ensure we have enough candles to check the pattern (e.g., at least 2 for Engulfing)
+            if (i >= detector.LookbackPeriod - 1)
+            {
+                PatternType type = detector.Detect(candles, i);
+
+                if (type != PatternType.None)
+                {
+                    patterns.Add(new PatternResult { Time = candles[i].Time, Type = type });
+                    // Use 'break' here if you only want to register ONE pattern per candle
+                    // break; 
+                }
+            }
+        }
+    }
+
+    DetectedPatterns = patterns;
+
+}
 
     public MainWindowViewModel()
     {
@@ -96,6 +141,8 @@ public partial class MainWindowViewModel : ViewModelBase
         if (!string.IsNullOrEmpty(SelectedSymbol))
             LoadData(SelectedSymbol);
     }
+
+
 
    private void LoadData(string symbol)
 {
@@ -190,6 +237,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
 // ⭐ Call the Zigzag calculation here ⭐
     CalculateZigzag(Candles); 
+    DetectPatterns(Candles);
 
 // ... (rest of the label calculation logic) ...
 

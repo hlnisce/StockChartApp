@@ -7,11 +7,44 @@ using StockChartApp.Models;
 using System.Linq;
 using System.Globalization;
 using Avalonia.Media.TextFormatting;
+using StockChartApp.Patterns;
+
 
 namespace StockChartApp.Views;
 
 public class StockChartControl : Control
 {
+
+// Define a backing field for the Direct Property
+// Inside StockChartControl.cs
+
+// Define the private backing field
+// Inside StockChartControl.cs
+
+// ⭐ CRITICAL FIX: Initialize the backing field to a non-null, empty list. ⭐
+private IList<PatternResult>? _detectedPatterns = new List<PatternResult>(); 
+
+// ... rest of the DirectProperty definition ...
+
+public static readonly DirectProperty<StockChartControl, IList<PatternResult>?> DetectedPatternsProperty =
+    AvaloniaProperty.RegisterDirect<StockChartControl, IList<PatternResult>?>(
+        nameof(DetectedPatterns),
+        // Getter: Correctly accesses the backing field
+        o => o._detectedPatterns, 
+        
+        // ⭐ CRITICAL FIX: The setter must WRITE directly to the backing field! ⭐
+        (o, v) => o._detectedPatterns = v // Now points to the backing field, NOT the public setter.
+    ); 
+
+// The public property implementation relies on SetAndRaise, which handles the notification.
+public IList<PatternResult>? DetectedPatterns
+{
+    get => _detectedPatterns;
+    // This is correct: SetAndRaise handles the notification and assignment to the backing field
+    set => SetAndRaise(DetectedPatternsProperty, ref _detectedPatterns, value); 
+}
+
+// ... rest of the class ...
     public static readonly StyledProperty<IList<OhlcPoint>?> CandlesProperty =
         AvaloniaProperty.Register<StockChartControl, IList<OhlcPoint>?>(nameof(Candles));
 
@@ -61,7 +94,7 @@ public class StockChartControl : Control
     {
         // Make sure ZigzagPointsProperty is included in AffectsRender
         // Assuming your existing AffectsRender line looks something like this:
-        AffectsRender<StockChartControl>(CandlesProperty, PeriodProperty, ZigzagPointsProperty); 
+        AffectsRender<StockChartControl>(CandlesProperty, PeriodProperty, ZigzagPointsProperty, DetectedPatternsProperty); 
     }
 
 public override void Render(DrawingContext context)
@@ -222,47 +255,112 @@ public override void Render(DrawingContext context)
 
 // Inside StockChartControl.cs / Render (after the candlesticks drawing loop finishes)
 
-// Draw Zigzag Line
-if (ZigzagPoints != null && ZigzagPoints.Count >= 2)
-{
-    var zigzagPen = new Pen(Brushes.Blue, 2.0); // Line style
-
-    Point? previousPoint = null;
-
-    for (int k = 0; k < ZigzagPoints.Count; k++)
-    {
-        var zPoint = ZigzagPoints[k];
-        
-        // ⭐ FINAL CRITICAL FIX: Use a simple loop search to find the index (i) by matching Time. ⭐
-        int i = -1;
-        for (int idx = 0; idx < data.Count; idx++)
+        // Draw Zigzag Line
+        if (ZigzagPoints != null && ZigzagPoints.Count >= 2)
         {
-            // Compare the DateTime values directly
-            if (data[idx].Time == zPoint.Time)
+            var zigzagPen = new Pen(Brushes.Blue, 2.0); // Line style
+
+            Point? previousPoint = null;
+
+            for (int k = 0; k < ZigzagPoints.Count; k++)
             {
-                i = idx;
-                break;
+                var zPoint = ZigzagPoints[k];
+                
+                // ⭐ FINAL CRITICAL FIX: Use a simple loop search to find the index (i) by matching Time. ⭐
+                int i = -1;
+                for (int idx = 0; idx < data.Count; idx++)
+                {
+                    // Compare the DateTime values directly
+                    if (data[idx].Time == zPoint.Time)
+                    {
+                        i = idx;
+                        break;
+                    }
+                }
+
+                // If the index isn't found (i < 0), skip this point and continue to the next one.
+                if (i < 0) continue; 
+                
+                // Calculate X and Y pixel coordinates for the swing point
+                double xCenter = leftMargin + step * i + step / 2;
+                double yPrice = topMargin + (max - zPoint.Price) / range * height;
+
+                var currentPoint = new Point(xCenter, yPrice);
+
+                if (previousPoint.HasValue)
+                {
+                    context.DrawLine(zigzagPen, previousPoint.Value, currentPoint);
+                }
+
+                previousPoint = currentPoint;
             }
         }
 
-        // If the index isn't found (i < 0), skip this point and continue to the next one.
-        if (i < 0) continue; 
-        
-        // Calculate X and Y pixel coordinates for the swing point
-        double xCenter = leftMargin + step * i + step / 2;
-        double yPrice = topMargin + (max - zPoint.Price) / range * height;
+// Inside StockChartControl.cs / Render (after Zigzag drawing)
 
-        var currentPoint = new Point(xCenter, yPrice);
-
-        if (previousPoint.HasValue)
+        // Draw Candlestick Pattern Markers
+        if (DetectedPatterns != null && DetectedPatterns.Any())
         {
-            context.DrawLine(zigzagPen, previousPoint.Value, currentPoint);
+            var upBrush = Brushes.DarkGreen; // For Bullish patterns
+            var downBrush = Brushes.Red;      // For Bearish patterns
+            var markerPen = new Pen(Brushes.Black, 1);
+            
+            foreach (var pattern in DetectedPatterns)
+            {
+                // Find the index 'i' of the candle with the matching time
+                int i = -1;
+                for (int idx = 0; idx < data.Count; idx++)
+                {
+                    if (data[idx].Time == pattern.Time)
+                    {
+                        i = idx;
+                        break;
+                    }
+                }
+
+                if (i < 0) continue; 
+
+                var candle = data[i];
+                double xCenter = leftMargin + step * i + step / 2;
+                
+                // Find the Y coordinate of the candle's high or low
+                double yCoord;
+                IBrush fillBrush;
+
+                if (pattern.Type == PatternType.BullishEngulfing)
+                {
+                    // Draw marker below the candle's low
+                    yCoord = topMargin + (max - candle.Low) / range * height + 10; // 10 pixels below
+                    fillBrush = upBrush;
+                    
+                    // Draw an upward triangle (simple approximation)
+                    var points = new[]
+                    {
+                        new Point(xCenter - 4, yCoord + 8),
+                        new Point(xCenter + 4, yCoord + 8),
+                        new Point(xCenter, yCoord)
+                    };
+                    context.DrawGeometry(fillBrush, markerPen, new PolylineGeometry(points, false));
+                }
+                else if (pattern.Type == PatternType.BearishEngulfing)
+                {
+                    // Draw marker above the candle's high
+                    yCoord = topMargin + (max - candle.High) / range * height - 10; // 10 pixels above
+                    fillBrush = downBrush;
+
+                    // Draw a downward triangle
+                    var points = new[]
+                    {
+                        new Point(xCenter - 4, yCoord - 8),
+                        new Point(xCenter + 4, yCoord - 8),
+                        new Point(xCenter, yCoord)
+                    };
+                    context.DrawGeometry(fillBrush, markerPen, new PolylineGeometry(points, false));
+                }
+            }
         }
 
-        previousPoint = currentPoint;
-    }
-}
-    
+            
     // 4. Draw X-axis Time Labels
     var start = data.First().Time;
     var end = data.Last().Time.AddMinutes(0);

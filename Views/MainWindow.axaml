@@ -55,6 +55,7 @@
                 ZigzagPoints="{Binding ZigzagPoints}"  PointerMoved="ChartArea_PointerMoved"
                 PointerExited="ChartArea_PointerExited"
             />
+
             
         </Grid>
     </Grid>
