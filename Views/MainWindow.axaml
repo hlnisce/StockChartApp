@@ -3,10 +3,7 @@
     xmlns:vm="using:StockChartApp.ViewModels"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:shapes="clr-namespace:Avalonia.Controls.Shapes;assembly=Avalonia.Controls"
     xmlns:local="using:StockChartApp.Views"
-    xmlns:conv="using:StockChartApp.Converters"
-    xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.Avalonia;assembly=LiveChartsCore.SkiaSharpView.Avalonia"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
     x:Class="StockChartApp.Views.MainWindow"
     x:DataType="vm:MainWindowViewModel"
@@ -14,35 +11,24 @@
     Title="StockChartApp">
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainWindowViewModel/>
     </Design.DataContext>
-
-    <Window.Resources>
-        <conv:MultiplyConverter x:Key="MultiplyConverter" />
-    </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Top-left panel with dropdown for symbols -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8" Spacing="8">
             <TextBlock Text="Symbol:" VerticalAlignment="Center" Margin="0,0,6,0"/>
             <ComboBox ItemsSource="{Binding Symbols}" SelectedItem="{Binding SelectedSymbol, Mode=TwoWay}" Width="120"/>
 
-            <!-- Interval dropdown (defaults to 3m) -->
             <ComboBox ItemsSource="{Binding Intervals}" SelectedItem="{Binding SelectedInterval, Mode=TwoWay}" Width="80"/>
 
-            <!-- Period dropdown (1D, 1W, 1M, 1Y) -->
             <ComboBox ItemsSource="{Binding Periods}" SelectedItem="{Binding SelectedPeriod, Mode=TwoWay}" Width="70"/>
-
-            <!-- Right of the dropdown: text input to enter a custom symbol and a Load button -->
+            
             <TextBox x:Name="SymbolTextBox" Width="120" Watermark="Enter symbol" Text="{Binding NewSymbol, Mode=TwoWay}" KeyDown="SymbolTextBox_KeyDown" />
             <Button Content="Load" Command="{Binding LoadSymbolCommand}" />
             
@@ -56,86 +42,21 @@
                 IsHitTestVisible="False" />
         </StackPanel>
 
-        <!-- Middle: left column for Y labels, right column for chart -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="60" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- Chart area and overlays live in the second column; Y labels will be drawn inside the chart's left margin via overlay -->
-        <local:StockChartControl 
-            Grid.Column="1" 
-            x:Name="ChartArea" 
-            Candles="{Binding Candles}"
-            Period="{Binding SelectedPeriod}"
-            PointerMoved="ChartArea_PointerMoved"      PointerExited="ChartArea_PointerExited"    />
-
-            <!-- Overlay container inside the chart column for axis labels -->
-            <Grid Grid.Column="1" IsHitTestVisible="False">
-
-    <shapes:Line 
-        Stroke="Gray" 
-        StrokeThickness="1"
-       />
-
-
-
-        
-                <!-- Y labels overlay: positioned inside chart left margin (x ~ 6) -->
-                <ItemsControl ItemsSource="{Binding ElementName=ChartArea, Path=PixelYLabels}" x:Name="YLabelsOverlay" IsVisible="False">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <Canvas />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Text}" Foreground="Black" FontSize="12">
-                                <Canvas.Left>
-                                    <Binding Path="X" />
-                                </Canvas.Left>
-                                <Canvas.Top>
-                                    <Binding Path="Y" />
-                                </Canvas.Top>
-                            </TextBlock>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                    <ItemsControl.Width>
-                        <Binding ElementName="ChartArea" Path="Bounds.Width" />
-                    </ItemsControl.Width>
-                    <ItemsControl.Height>
-                        <Binding ElementName="ChartArea" Path="Bounds.Height" />
-                    </ItemsControl.Height>
-                </ItemsControl>
-
-                <!-- X labels overlay: bottom-aligned inside chart area (hidden; labels drawn by control) -->
-                <ItemsControl ItemsSource="{Binding ElementName=ChartArea, Path=PixelXLabels}" x:Name="XLabelsOverlay" VerticalAlignment="Bottom" Margin="0,0,0,2" IsVisible="False">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <Canvas />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Text}" Foreground="Black" FontSize="12">
-                                <Canvas.Left>
-                                    <Binding Path="X" />
-                                </Canvas.Left>
-                                <Canvas.Top>
-                                    <Binding Path="Y" />
-                                </Canvas.Top>
-                            </TextBlock>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                    <ItemsControl.Width>
-                        <Binding ElementName="ChartArea" Path="Bounds.Width" />
-                    </ItemsControl.Width>
-                </ItemsControl>
-            </Grid>
+            <local:StockChartControl 
+                Grid.Column="0" 
+                x:Name="ChartArea" 
+                Candles="{Binding Candles}"
+                Period="{Binding SelectedPeriod}"
+                ZigzagPoints="{Binding ZigzagPoints}"  PointerMoved="ChartArea_PointerMoved"
+                PointerExited="ChartArea_PointerExited"
+            />
+            
         </Grid>
-
-        
     </Grid>
 
 </Window>
