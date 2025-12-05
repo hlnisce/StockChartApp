@@ -245,7 +245,7 @@ private double GetZigzagThreshold(string period)
         if (SelectedInterval is "1m" or "2m") 
         {
             // Increased from 0.0001 (0.01%) to 0.0010 (0.10%)
-            return 0.0023; // 0.10% for 1m/2m charts (Less sensitive)
+            return 0.0022; // 0.10% for 1m/2m charts (Less sensitive)
         }
         else if (SelectedInterval is "3m" or "5m" or "15m") 
         {
